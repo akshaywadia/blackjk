@@ -5,6 +5,11 @@ int Card::getValue(void)
 	return value;
 }
 
+void Card::printCard(void)
+{
+	cout << "(" <<  value << "," << suite << ") " ;
+}
+
 void Player::addCard(Card nextCard)
 {
 	hand.push_back(nextCard);
@@ -16,15 +21,23 @@ int Player::getHandSum(void)
 	return handSum;
 }
 
+void Player::reset(void)
+{
+	hand = vector<Card>();
+	handSum = 0;
+}
+
+
+
 Deck::Deck(void)
 {
 	nextCardIndex = 0;
 	currentDeck = vector<Card>(52);
-	for (int i=0;i<13;i=i+4) {
-		currentDeck[i] = Card(i, HEARTS);
-		currentDeck[i+1] = Card(i+1, CLUBS);
-		currentDeck[i+2] = Card(i+2, DIAMONDS);
-	       	currentDeck[i+3] = Card(i+3, SPADES);
+	for (int i=1;i<=13;++i) {
+		currentDeck[i-1] = Card(i, HEARTS);
+		currentDeck[13+i-1] = Card(i, CLUBS);
+		currentDeck[2*13+i-1] = Card(i, DIAMONDS);
+	       	currentDeck[3*13+i-1] = Card(i, SPADES);
 	}
 }
 
@@ -42,3 +55,12 @@ Card Deck::drawNextCard(void)
 	}	
 	return currentDeck[nextCardIndex++];
 }
+
+void Deck::printDeck(void)
+{
+	for (int i=0;i<52;++i) 
+		currentDeck[i].printCard();
+}
+
+
+
