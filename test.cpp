@@ -31,6 +31,12 @@ int main()
 		dk.drawNextCard().printCard(); */
 
 	//test Table;
+	//
+	
+
+	//test Table
+	Table currentTable = Table();
+	currentTable.startGame();
 	
 	return 0;
 }
