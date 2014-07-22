@@ -34,9 +34,9 @@ int main()
 	//
 	
 
-	//test Table
-	Table currentTable = Table();
-	currentTable.startGame();
+	//test Game;
+	Game mygame;
+	mygame.playGame();
 	
 	return 0;
 }

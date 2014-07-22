@@ -1,5 +1,57 @@
 #include"blackjk.h"
 
+// Initialize static members
+Player gameState::userPlayer = Player();
+Player gameState::dealerPlayer = Player();
+Deck gameState::gameDeck = Deck();
+
+/********************* 
+ * UI and IO Functions
+ */
+char getNextAction(void)
+{
+	char action;
+	cin >> action;
+	if (action < 'a')
+		action += 'a'-'A';
+	return action;
+}
+
+void clearScreen(void)
+{
+	cout << string(100, '\n');
+}
+
+void initialScreen(void)
+{
+	cout << "Welcome to Blackjack!" << endl;
+	cout << "Press `d\' to deal new hand: " ;
+}
+
+void displayHelp(vector<char> allowedActions)
+{
+	// initialize help messages.
+	map<char,string> actionDescription;
+	actionDescription[QUIT] = "Quit game.";
+	actionDescription[HIT] = "Hit. Draw another card from dealer.";
+	actionDescription[DEAL] = "Deal a new game.";
+	actionDescription[STAND] = "Stand your hand.";
+
+	vector<char>::iterator it;
+	for (it = allowedActions.begin();it != allowedActions.end(); ++it)
+		cout << "\t\t" << *it << "   :   " << actionDescription[*it] << endl;
+	cout << "Enter next action: ";
+
+}
+
+void displayPrompt(void)
+{
+	cout << "Enter action ('?' for help) : " ;
+}
+
+/********************
+ * Card class.
+ */
 int Card::getValue(void)
 {
 	return value;
@@ -13,6 +65,10 @@ void Card::printCard(void)
 		cout << value;
 	cout << suite << " ";
 }
+
+/********************
+ * Player class.
+ */
 
 void Player::addCard(Deck &currentDeck, int numberOfCards=1)
 {
@@ -49,6 +105,9 @@ void Player::printHand(bool dealer = false)
 	}
 }
 
+/********************
+ * Deck class.
+ */
 Deck::Deck(void)
 {
 	nextCardIndex = 0;
@@ -84,27 +143,10 @@ void Deck::printDeck(void)
 		currentDeck[i].printCard();
 }
 
-Table::Table()
-{
-	clearScreen();
-	tableDeck = Deck();
-	userPlayer = Player();
-	dealerPlayer = Player();
-	//Welcome message.
-	cout << "Welcome to Blackjack!" << endl << endl;
-}
-
-void Table::clearScreen(void)
-{
-	cout << string(100, '\n');
-}
-
-void Table::initialScreen(void)
-{
-	cout << "Press `d\' to deal new hand: " ;
-}
-
-void Table::displayHands(bool gameEnded = false)
+/********************
+ * Game state classes. 
+ */
+void gameState::displayHands(bool gameEnded = false)
 {
 	if (gameEnded) 
 		dealerPlayer.printHand();
@@ -114,7 +156,121 @@ void Table::displayHands(bool gameEnded = false)
 	cout << endl << "\t    Your Sum:\t\t\t" << userPlayer.getHandSum() << endl;
 }
 
-void Table::startGame(void)
+// Initial state.
+gameStateInitial::gameStateInitial()
+{
+	stateName = "Initial State";
+	char temp[] = {DEAL, QUIT};
+	allowedActions = vector<char>(temp, temp + sizeof(temp)/sizeof(char));
+}
+
+void gameStateInitial::exec(char action)
+{
+	switch (action) {
+		case DEAL: userPlayer.addCard(gameDeck, 2);
+			   dealerPlayer.addCard(gameDeck, 2);
+			   displayHands();
+			   displayPrompt();
+			   break;
+		case QUIT: break;
+		default:   cout << "Invalid input." << endl;
+			   displayHelp(allowedActions);
+			   break;
+	}
+}
+
+gameState * gameStateInitial::transition(char action)
+{
+	switch (action) {
+		case DEAL: return new gameStatePlayer();
+			   break;
+		case QUIT: return new gameStateQuit();
+			   break;
+		default: return new gameStateInitial();
+	}
+}
+
+// Player state.
+gameStatePlayer::gameStatePlayer()
+{
+	stateName = "Player State";
+	char temp[] = {HIT, STAND, QUIT};
+	allowedActions = vector<char>(temp, temp + sizeof(temp)/sizeof(char));
+}
+
+void gameStatePlayer::exec(char action)
+{
+	switch (action) {
+		case HIT: userPlayer.addCard(gameDeck);
+			  displayHands();
+			  displayPrompt();
+			  break;
+		case STAND: break;
+		case QUIT: break;
+		default:   cout << "Invalid input." << endl;
+			   displayHelp(allowedActions);
+			   break;
+	}
+}
+
+gameState * gameStatePlayer::transition(char action)
+{
+	switch (action) {
+		case HIT: return new gameStatePlayer();
+			  break;
+		case STAND: return new gameStateDealer();
+			    break;
+		case QUIT: return new gameStateQuit();
+			   break;
+		default: return new gameStatePlayer();
+			 break;
+	}
+}
+
+// Dealer state.
+
+gameStateDealer::gameStateDealer()
+{
+	stateName = "Dealer State";
+}
+
+void gameStateDealer::exec(char action)
+{
+	// dealer strategy
+}
+
+gameState * gameStateDealer::transition(char action)
+{
+}
+
+// Quit state.
+gameStateQuit::gameStateQuit()
+{
+	stateName = "Quit State";
+}
+
+/********************
+ * Game class.
+ */
+void Game::playGame(void)
+{
+	clearScreen();
+	initialScreen();
+	gameState * currentState = new gameStateInitial;
+	char action;
+	do {
+		if (currentState->getStateName() == "Dealer State")
+			action = '\0';
+		else
+			action = getNextAction();
+		currentState->exec(action);
+		currentState = currentState->transition(action);
+
+	} while (currentState->getStateName() != "Quit State");
+}
+
+
+/*void Table::startGame(void)
 {
 	initialScreen();
 	char action = getNextAction();
@@ -136,13 +292,6 @@ void Table::startGame(void)
 		action = getNextAction();
 		cout << endl;
 	}
-}
+} */
 
-char Table::getNextAction(void)
-{
-	char action;
-	cin >> action;
-	if (action < 'a')
-		action += 'a'-'A';
-	return action;
-}
+

@@ -1,7 +1,9 @@
 #include<vector>
+#include<string>
 #include<algorithm>
 #include<iostream>
 #include<string>
+#include<map>
 
 using namespace std;
 
@@ -17,6 +19,20 @@ const char DEAL='d';
 const char HIT='h';
 const char STAND='s';
 
+
+/********************* 
+ * UI and IO Functions
+ */
+void clearScreen(void);
+void initialScreen(void);
+char getNextAction(void);
+void displayHelp(vector<char> allowedActions);
+void displayPrompt(void);
+
+
+/******************** 
+ * Card class.
+ */
 class Card {
 	private:
 		int value;
@@ -28,6 +44,10 @@ class Card {
 		int getValue(void);
 		void printCard(void);
 };
+
+/********************
+ * Deck class.
+ */
 
 class Deck {
 	private:
@@ -44,6 +64,10 @@ class Deck {
 		void printDeck(void);
 };
 
+/********************
+ * Player class.
+ */
+
 class Player {
 	private:
 		vector<Card> hand;
@@ -57,26 +81,68 @@ class Player {
 
 };
 
-//////////////////////////////////////////////////////////////////////////////
 
+
+
+/********************
+ * Game state classes.
+ */
 class gameState {
 	public:
+		string stateName;
+		vector<char> allowedActions;
 		static Player userPlayer;
 		static Player dealerPlayer;
-		static Deck currentDeck;
+		static Deck gameDeck;
+
+		gameState() {}
+
+		string getStateName(void) {return stateName;}
+
+		// Game state transition function. 
+		virtual void exec(char input) {}
+		virtual gameState * transition(char input) {}
+		void displayHands(bool gameEnded);
 };
 
-class Table {
-	private:
-		Player userPlayer;
-		Player dealerPlayer;
-		Deck tableDeck;
+
+
+class gameStateInitial : public gameState {
 	public:
-		Table();
+		gameStateInitial();
+		void exec(char input);
+		gameState * transition(char input);
+};
+
+class gameStatePlayer : public gameState {
+	public:
+		gameStatePlayer();
+		void exec(char input);
+		gameState * transition(char input);
+};
+
+class gameStateDealer : public gameState {
+	public:
+		gameStateDealer();
+		void exec(char input);
+		gameState * transition(char input);
+};
+
+
+class gameStateQuit : public gameState {
+	public:
+		gameStateQuit();
+		void exec(char input) {}
+		gameState * transition(char input) {}
+};
+
+/********************
+ * Game class.
+ */
+class Game {
+	public:
+		Game() {}
 		// UI functions
-		void startGame(void);
-		void clearScreen(void);
-		void initialScreen(void);
-		void displayHands(bool gameEnded);
-		char getNextAction(void);
+		void playGame(void);
+
 };  
