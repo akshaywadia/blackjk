@@ -4,6 +4,8 @@
 #include<iostream>
 #include<string>
 #include<map>
+#include<cstdlib>
+#include<time.h>
 
 using namespace std;
 
@@ -75,9 +77,13 @@ class Player {
 	public:
 		Player(void) : handSum(0) {}
 		void addCard(Deck &currentDeck, int numberOfCards);
+		// returns the `lowest' sum. only used for checking bust or not.
 		int getHandSum(void);
+		// returns largest sum less than 21. 
+		int getBestHandSum(void);
+		bool bust(void);
 		void resetPlayer(void);
-		void printHand(bool dealer);
+		void printHand(bool dealer, bool shadow);
 
 };
 
@@ -142,7 +148,6 @@ class gameStateQuit : public gameState {
 class Game {
 	public:
 		Game() {}
-		// UI functions
 		void playGame(void);
 
 };  

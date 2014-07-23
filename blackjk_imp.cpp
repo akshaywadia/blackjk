@@ -12,7 +12,7 @@ char getNextAction(void)
 {
 	char action;
 	cin >> action;
-	if (action < 'a')
+	if (action < 'a' && action != '?')
 		action += 'a'-'A';
 	return action;
 }
@@ -59,10 +59,18 @@ int Card::getValue(void)
 
 void Card::printCard(void)
 {
-	if (value == 1)
-		cout << 'A';
-	else 
-		cout << value;
+	switch (value) {
+		case 1: cout << 'A';
+			break;
+		case 11: cout << 'J';
+			 break;
+		case 12: cout << 'Q';
+			 break;
+		case 13: cout << 'K';
+			 break;
+		default: cout << value;
+			 break;
+	}
 	cout << suite << " ";
 }
 
@@ -76,7 +84,10 @@ void Player::addCard(Deck &currentDeck, int numberOfCards=1)
 	for (int i=0;i<numberOfCards;++i) {
 		nextCard = currentDeck.drawNextCard();
 		hand.push_back(nextCard);
-		handSum += nextCard.getValue();
+		if (nextCard.getValue() < 10)
+			handSum += nextCard.getValue();
+		else
+			handSum += 10;
 	}
 }
 
@@ -85,13 +96,32 @@ int Player::getHandSum(void)
 	return handSum;
 }
 
+int Player::getBestHandSum(void)
+{
+	int lowSum = handSum;
+	int noOfAces = 0;
+	for (int i=0;i<hand.size();++i)
+		if (hand[i].getValue() == 1)
+			++noOfAces;
+	while (lowSum + 10 <= 21 && noOfAces > 0) {
+		lowSum += 10;
+		--noOfAces;
+	}
+	return lowSum;
+}
+
+bool Player::bust(void)
+{
+	return (handSum > 21);
+}
+
 void Player::resetPlayer(void)
 {
 	hand = vector<Card>();
 	handSum = 0;
 }
 
-void Player::printHand(bool dealer = false)
+void Player::printHand(bool dealer = false, bool shadow = true)
 {
 	if (!dealer) {
 		cout << "\tYour Hand:\t\t";
@@ -101,7 +131,13 @@ void Player::printHand(bool dealer = false)
 	else {
 		cout << "\tDealer's Hand:\t\t" ;
 		hand[0].printCard();
-		cout 	<< "??" << endl;
+		if (shadow)
+			cout 	<< "??" << endl;
+		else {
+			for (int i=1;i<hand.size();++i)
+				hand[i].printCard();
+			cout << endl;
+		}
 	}
 }
 
@@ -121,9 +157,15 @@ Deck::Deck(void)
 	resetDeck();
 }
 
+int randomGen(int i)
+{
+	srand(time(NULL));
+	return rand()%i;
+}
+
 void Deck::resetDeck(void)
 {
-	random_shuffle(currentDeck.begin(), currentDeck.end());
+	random_shuffle(currentDeck.begin(), currentDeck.end(), randomGen);
 	nextCardIndex = 0;
 }
 
@@ -149,9 +191,9 @@ void Deck::printDeck(void)
 void gameState::displayHands(bool gameEnded = false)
 {
 	if (gameEnded) 
-		dealerPlayer.printHand();
+		dealerPlayer.printHand(true, false);
 	else
-		dealerPlayer.printHand(true);
+		dealerPlayer.printHand(true, true);
 	userPlayer.printHand();
 	cout << endl << "\t    Your Sum:\t\t\t" << userPlayer.getHandSum() << endl;
 }
@@ -166,7 +208,11 @@ gameStateInitial::gameStateInitial()
 
 void gameStateInitial::exec(char action)
 {
+	userPlayer.resetPlayer();
+	dealerPlayer.resetPlayer();
 	switch (action) {
+		case '?': displayHelp(allowedActions);
+			  break;
 		case DEAL: userPlayer.addCard(gameDeck, 2);
 			   dealerPlayer.addCard(gameDeck, 2);
 			   displayHands();
@@ -201,8 +247,12 @@ gameStatePlayer::gameStatePlayer()
 void gameStatePlayer::exec(char action)
 {
 	switch (action) {
+		case '?': displayHelp(allowedActions);
+			  break;
 		case HIT: userPlayer.addCard(gameDeck);
 			  displayHands();
+			  if (userPlayer.bust())
+				  cout << "Bust!!" << endl;
 			  displayPrompt();
 			  break;
 		case STAND: break;
@@ -216,14 +266,17 @@ void gameStatePlayer::exec(char action)
 gameState * gameStatePlayer::transition(char action)
 {
 	switch (action) {
-		case HIT: return new gameStatePlayer();
-			  break;
+		case HIT:   if (userPlayer.bust())
+				    return new gameStateInitial();
+			    else
+				    return new gameStatePlayer();
+			    break;
 		case STAND: return new gameStateDealer();
 			    break;
-		case QUIT: return new gameStateQuit();
-			   break;
-		default: return new gameStatePlayer();
-			 break;
+		case QUIT:  return new gameStateQuit();
+			    break;
+		default:    return new gameStatePlayer();
+			    break;
 	}
 }
 
@@ -236,11 +289,22 @@ gameStateDealer::gameStateDealer()
 
 void gameStateDealer::exec(char action)
 {
-	// dealer strategy
+	// dealer's strategy
+	while (dealerPlayer.getBestHandSum() < 17)
+		dealerPlayer.addCard(gameDeck);
+
+	displayHands(true);
+	// check who won
+	if (dealerPlayer.getBestHandSum() > userPlayer.getBestHandSum() && dealerPlayer.getBestHandSum() <= 21) 
+		cout << "Dealer wins!!" << endl;
+	else
+		cout << "You win!!" << endl;
+	displayPrompt();
 }
 
 gameState * gameStateDealer::transition(char action)
 {
+	return new gameStateInitial();
 }
 
 // Quit state.
@@ -257,6 +321,7 @@ void Game::playGame(void)
 	clearScreen();
 	initialScreen();
 	gameState * currentState = new gameStateInitial;
+	gameState *temp;
 	char action;
 	do {
 		if (currentState->getStateName() == "Dealer State")
@@ -264,34 +329,9 @@ void Game::playGame(void)
 		else
 			action = getNextAction();
 		currentState->exec(action);
+		temp = currentState;
 		currentState = currentState->transition(action);
+		delete temp;
 
 	} while (currentState->getStateName() != "Quit State");
 }
-
-
-/*void Table::startGame(void)
-{
-	initialScreen();
-	char action = getNextAction();
-	cout << endl;
-	while (action != QUIT) {
-		switch (action) {
-			case DEAL: userPlayer.addCard(tableDeck, 2);
-				   dealerPlayer.addCard(tableDeck, 2);
-				   displayHands();
-				   break;
-			case HIT: userPlayer.addCard(tableDeck);
-				  displayHands();
-				  break;
-			default: cout << endl << "Enter valid choice ('?' for help): " ;
-				 break;
-
-		}
-		cout << endl << "Enter next command (? for help): " ;
-		action = getNextAction();
-		cout << endl;
-	}
-} */
-
-
