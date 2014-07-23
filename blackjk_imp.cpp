@@ -8,6 +8,10 @@ Deck gameState::gameDeck = Deck();
 /********************* 
  * UI and IO Functions
  */
+
+/*
+ * Returns next action as specified by the user. Minimal input sanitation done. 
+ */
 char getNextAction(void)
 {
 	char action;
@@ -41,10 +45,11 @@ void displayHelp(vector<char> allowedActions)
 
 	vector<char>::iterator it;
 	cout << endl;
+
+	// display help for all actions in 'allowedActions'
 	for (it = allowedActions.begin();it != allowedActions.end(); ++it)
 		cout << "\t\t" << *it << "   :   " << actionDescription[*it] << endl;
 	cout << endl;
-	//cout << "Enter next action: ";
 
 }
 
@@ -53,6 +58,9 @@ void displayPrompt(void)
 	cout << "Enter next action ('?' for help): ";
 }
 
+/*
+ * Prompts and returns user's betting amount, subject to limit set by 'chipsRemaining'. Minimal input sanitation.
+ */
 int getBet(int chipsRemaining)
 {
 	int bet = 0;
@@ -96,6 +104,9 @@ void Card::printCard(void)
  * Player class.
  */
 
+/*
+ * Adds 'numberOfCards' from the 'currentDeck' to userPlayer's hand. Updates 'handSum'.
+ */
 void Player::addCard(Deck &currentDeck, int numberOfCards=1)
 {
 	Card nextCard;
@@ -114,6 +125,9 @@ int Player::getHandSum(void)
 	return handSum;
 }
 
+/*
+ * Returns the sum of the best hand so far. Invariant: if any ace is used as 10 instead of 1, then bestHandSum exceeds 21.
+ */
 int Player::getBestHandSum(void)
 {
 	int lowSum = handSum;
@@ -144,6 +158,9 @@ void Player::resetPlayer(void)
 	handSum = 0;
 }
 
+/*
+ * Displays header according to value of 'dealer'. Argument 'shadow' determines if hole card is displayed as '??' or open.
+ */
 void Player::printHand(bool dealer = false, bool shadow = true)
 {
 	if (!dealer) {
@@ -171,6 +188,7 @@ Deck::Deck(void)
 {
 	nextCardIndex = 0;
 	currentDeck = vector<Card>(52);
+	// fill up deck sequentially
 	for (int i=1;i<=13;++i) {
 		currentDeck[i-1] = Card(i, HEARTS);
 		currentDeck[13+i-1] = Card(i, CLUBS);
@@ -202,6 +220,9 @@ Card Deck::drawNextCard(void)
 	return currentDeck[nextCardIndex-1];
 }
 
+/*
+ * For debug only.
+ */
 void Deck::printDeck(void)
 {
 	for (int i=0;i<52;++i) 
@@ -232,8 +253,10 @@ gameStateInitial::gameStateInitial()
 
 void gameStateInitial::exec(char action)
 {
+	// reset players at start of initial state
 	userPlayer.resetPlayer();
 	dealerPlayer.resetPlayer();
+
 	switch (action) {
 		case '?': displayHelp(allowedActions);
 			  break;
@@ -311,8 +334,12 @@ void gameStatePlayer::exec(char action)
 gameState * gameStatePlayer::transition(char action)
 {
 	switch (action) {
-		case HIT:   if (userPlayer.bust())
-				    return new gameStateInitial();
+		case HIT:   if (userPlayer.bust()) {
+				    if (userPlayer.chipsRemaining > 0)
+					    return new gameStateInitial();
+				    else
+					    return new gameStateQuit();
+			    }
 			    else if (userPlayer.blackjack())
 				    return new gameStateDealer();
 			    else

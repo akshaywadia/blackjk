@@ -6,7 +6,6 @@
 #include<map>
 #include<cstdlib>
 #include<time.h>
-#include<istream>
 
 using namespace std;
 
@@ -33,6 +32,7 @@ void initialScreen(void);
 char getNextAction(void);
 void displayHelp(vector<char> allowedActions);
 void displayPrompt(void);
+void getBet(void);
 
 
 /******************** 
@@ -57,6 +57,8 @@ class Card {
 class Deck {
 	private:
 		vector<Card> currentDeck;
+
+		// Moves ahead as cards are drawn. When deck is exhausted, new deck is created.
 		int nextCardIndex;
 	public:
 		Deck(void);
@@ -84,27 +86,32 @@ class Player {
 
 		Player(void) : handSum(0), chipsRemaining(100), currentBet(0) {}
 		void addCard(Deck &currentDeck, int numberOfCards);
+
 		// returns the `lowest' sum. only used for checking bust or not.
 		int getHandSum(void);
+
 		// returns largest sum less than 21. 
 		int getBestHandSum(void);
+
 		bool bust(void);
 		bool blackjack(void);
 		void resetPlayer(void);
 		void printHand(bool dealer, bool shadow);
-
 };
-
-
 
 
 /********************
  * Game state classes.
  */
+
+/* Game states represent the finite automaton for the game. See README.md for more details.
+ */
 class gameState {
 	public:
 		string stateName;
 		vector<char> allowedActions;
+
+		// shared data across all states
 		static Player userPlayer;
 		static Player dealerPlayer;
 		static Deck gameDeck;
@@ -113,13 +120,15 @@ class gameState {
 
 		string getStateName(void) {return stateName;}
 
-		// Game state transition function. 
+		// Game state execution function. 
 		virtual void exec(char input) {}
+
+		// Game state transition function.
 		virtual gameState * transition(char input) {}
+
 		virtual void printPrompt(void) {}
 		void displayHands(bool gameEnded);
 };
-
 
 
 class gameStateInitial : public gameState {
