@@ -25,7 +25,7 @@ void clearScreen(void)
 void initialScreen(void)
 {
 	cout << "Welcome to Blackjack!" << endl;
-	cout << "Press `d\' to deal new hand: " ;
+	cout << "Enter next action ('?' for help): ";
 }
 
 void displayHelp(vector<char> allowedActions)
@@ -36,17 +36,35 @@ void displayHelp(vector<char> allowedActions)
 	actionDescription[HIT] = "Hit. Draw another card from dealer.";
 	actionDescription[DEAL] = "Deal a new game.";
 	actionDescription[STAND] = "Stand your hand.";
+	actionDescription[CHIPS] = "Your remaining chips.";
+	actionDescription[PRINT] = "Print current hands.";
 
 	vector<char>::iterator it;
+	cout << endl;
 	for (it = allowedActions.begin();it != allowedActions.end(); ++it)
 		cout << "\t\t" << *it << "   :   " << actionDescription[*it] << endl;
-	cout << "Enter next action: ";
+	cout << endl;
+	//cout << "Enter next action: ";
 
 }
 
 void displayPrompt(void)
 {
-	cout << "Enter action ('?' for help) : " ;
+	cout << "Enter next action ('?' for help): ";
+}
+
+int getBet(int chipsRemaining)
+{
+	int bet = 0;
+	cout << "Chips remaining: " << chipsRemaining << endl;
+	while (!(bet > 0 && bet <= chipsRemaining)) {
+		cout << "Enter bet amount (min 1 chip): " ;
+		if (!(cin >> bet)) {
+			cin.ignore(100, '\n');
+			cin.clear();
+		}
+	}
+	return bet;
 }
 
 /********************
@@ -113,6 +131,11 @@ int Player::getBestHandSum(void)
 bool Player::bust(void)
 {
 	return (handSum > 21);
+}
+
+bool Player::blackjack(void)
+{
+	return (getBestHandSum() == 21);
 }
 
 void Player::resetPlayer(void)
@@ -190,19 +213,20 @@ void Deck::printDeck(void)
  */
 void gameState::displayHands(bool gameEnded = false)
 {
+	cout << endl;
 	if (gameEnded) 
 		dealerPlayer.printHand(true, false);
 	else
 		dealerPlayer.printHand(true, true);
 	userPlayer.printHand();
-	cout << endl << "\t    Your Sum:\t\t\t" << userPlayer.getHandSum() << endl;
+	cout << endl << "\t    Your Sum:\t\t\t" << userPlayer.getHandSum() << "  (Best Hand: " << userPlayer.getBestHandSum() << ")" <<  endl << endl;
 }
 
 // Initial state.
 gameStateInitial::gameStateInitial()
 {
 	stateName = "Initial State";
-	char temp[] = {DEAL, QUIT};
+	char temp[] = {DEAL, CHIPS, QUIT};
 	allowedActions = vector<char>(temp, temp + sizeof(temp)/sizeof(char));
 }
 
@@ -213,13 +237,17 @@ void gameStateInitial::exec(char action)
 	switch (action) {
 		case '?': displayHelp(allowedActions);
 			  break;
-		case DEAL: userPlayer.addCard(gameDeck, 2);
+		case DEAL: userPlayer.currentBet = getBet(userPlayer.chipsRemaining); 
+			   userPlayer.addCard(gameDeck, 2);
 			   dealerPlayer.addCard(gameDeck, 2);
 			   displayHands();
-			   displayPrompt();
+			   if (userPlayer.blackjack())
+				   cout << "Blackjack!!" << endl;
 			   break;
 		case QUIT: break;
-		default:   cout << "Invalid input." << endl;
+		case CHIPS: cout << "Chips Remaining: " << userPlayer.chipsRemaining << endl;
+			    break;
+		default:   cout << "*Invalid input.*" << endl;
 			   displayHelp(allowedActions);
 			   break;
 	}
@@ -228,7 +256,10 @@ void gameStateInitial::exec(char action)
 gameState * gameStateInitial::transition(char action)
 {
 	switch (action) {
-		case DEAL: return new gameStatePlayer();
+		case DEAL: if (userPlayer.blackjack())
+				   return new gameStateDealer();
+			   else 
+				   return new gameStatePlayer();
 			   break;
 		case QUIT: return new gameStateQuit();
 			   break;
@@ -236,11 +267,16 @@ gameState * gameStateInitial::transition(char action)
 	}
 }
 
+void gameStateInitial::printPrompt(void)
+{
+	cout << "Enter next action ('?' for help): ";
+}
+
 // Player state.
 gameStatePlayer::gameStatePlayer()
 {
 	stateName = "Player State";
-	char temp[] = {HIT, STAND, QUIT};
+	char temp[] = {HIT, STAND, CHIPS, PRINT, QUIT};
 	allowedActions = vector<char>(temp, temp + sizeof(temp)/sizeof(char));
 }
 
@@ -251,13 +287,22 @@ void gameStatePlayer::exec(char action)
 			  break;
 		case HIT: userPlayer.addCard(gameDeck);
 			  displayHands();
-			  if (userPlayer.bust())
+			  if (userPlayer.bust()) {
 				  cout << "Bust!!" << endl;
-			  displayPrompt();
+				  userPlayer.chipsRemaining -= userPlayer.currentBet;
+			  }
+			  else if (userPlayer.blackjack())
+				  cout << "Blackjack!!" << endl;
+			  //displayPrompt();
 			  break;
 		case STAND: break;
-		case QUIT: break;
-		default:   cout << "Invalid input." << endl;
+		case CHIPS: cout << "Chips Remaining: " << userPlayer.chipsRemaining << endl;
+			    break;
+		case PRINT: displayHands();
+			    break;
+		case QUIT: userPlayer.chipsRemaining -= userPlayer.currentBet;
+			    break;
+		default:   cout << "*Invalid input.*" << endl;
 			   displayHelp(allowedActions);
 			   break;
 	}
@@ -268,6 +313,8 @@ gameState * gameStatePlayer::transition(char action)
 	switch (action) {
 		case HIT:   if (userPlayer.bust())
 				    return new gameStateInitial();
+			    else if (userPlayer.blackjack())
+				    return new gameStateDealer();
 			    else
 				    return new gameStatePlayer();
 			    break;
@@ -278,6 +325,11 @@ gameState * gameStatePlayer::transition(char action)
 		default:    return new gameStatePlayer();
 			    break;
 	}
+}
+
+void gameStatePlayer::printPrompt(void)
+{
+	cout << "Enter next action ('?' for help): ";
 }
 
 // Dealer state.
@@ -295,16 +347,26 @@ void gameStateDealer::exec(char action)
 
 	displayHands(true);
 	// check who won
-	if (dealerPlayer.getBestHandSum() > userPlayer.getBestHandSum() && dealerPlayer.getBestHandSum() <= 21) 
+	if (dealerPlayer.blackjack() && userPlayer.blackjack()) 
+		cout << "Push!!" << endl;
+	else if (dealerPlayer.getBestHandSum() > userPlayer.getBestHandSum() && dealerPlayer.getBestHandSum() <= 21) {
 		cout << "Dealer wins!!" << endl;
-	else
+		userPlayer.chipsRemaining -= userPlayer.currentBet;
+	}
+	else {
 		cout << "You win!!" << endl;
-	displayPrompt();
+		userPlayer.chipsRemaining += userPlayer.currentBet;
+	}
+	userPlayer.currentBet = 0;
+	//displayPrompt();
 }
 
 gameState * gameStateDealer::transition(char action)
 {
-	return new gameStateInitial();
+	if (userPlayer.chipsRemaining > 0)
+		return new gameStateInitial();
+	else
+		return new gameStateQuit;
 }
 
 // Quit state.
@@ -313,6 +375,7 @@ gameStateQuit::gameStateQuit()
 	stateName = "Quit State";
 }
 
+
 /********************
  * Game class.
  */
@@ -320,7 +383,7 @@ void Game::playGame(void)
 {
 	clearScreen();
 	initialScreen();
-	gameState * currentState = new gameStateInitial;
+	gameState *currentState = new gameStateInitial;
 	gameState *temp;
 	char action;
 	do {
@@ -331,7 +394,9 @@ void Game::playGame(void)
 		currentState->exec(action);
 		temp = currentState;
 		currentState = currentState->transition(action);
+		currentState->printPrompt();
 		delete temp;
 
 	} while (currentState->getStateName() != "Quit State");
+	cout << "Chips Remaining: " << currentState->userPlayer.chipsRemaining << endl;
 }

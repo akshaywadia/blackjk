@@ -6,6 +6,7 @@
 #include<map>
 #include<cstdlib>
 #include<time.h>
+#include<istream>
 
 using namespace std;
 
@@ -20,6 +21,8 @@ const char QUIT='q';
 const char DEAL='d';
 const char HIT='h';
 const char STAND='s';
+const char PRINT='p';
+const char CHIPS='c';
 
 
 /********************* 
@@ -74,14 +77,19 @@ class Player {
 	private:
 		vector<Card> hand;
 		int handSum;
+
 	public:
-		Player(void) : handSum(0) {}
+		int chipsRemaining;
+		int currentBet;
+
+		Player(void) : handSum(0), chipsRemaining(100), currentBet(0) {}
 		void addCard(Deck &currentDeck, int numberOfCards);
 		// returns the `lowest' sum. only used for checking bust or not.
 		int getHandSum(void);
 		// returns largest sum less than 21. 
 		int getBestHandSum(void);
 		bool bust(void);
+		bool blackjack(void);
 		void resetPlayer(void);
 		void printHand(bool dealer, bool shadow);
 
@@ -108,6 +116,7 @@ class gameState {
 		// Game state transition function. 
 		virtual void exec(char input) {}
 		virtual gameState * transition(char input) {}
+		virtual void printPrompt(void) {}
 		void displayHands(bool gameEnded);
 };
 
@@ -118,6 +127,7 @@ class gameStateInitial : public gameState {
 		gameStateInitial();
 		void exec(char input);
 		gameState * transition(char input);
+		void printPrompt(void);
 };
 
 class gameStatePlayer : public gameState {
@@ -125,6 +135,7 @@ class gameStatePlayer : public gameState {
 		gameStatePlayer();
 		void exec(char input);
 		gameState * transition(char input);
+		void printPrompt(void);
 };
 
 class gameStateDealer : public gameState {
@@ -132,6 +143,7 @@ class gameStateDealer : public gameState {
 		gameStateDealer();
 		void exec(char input);
 		gameState * transition(char input);
+		void printPrompt(void) {}
 };
 
 
@@ -140,6 +152,7 @@ class gameStateQuit : public gameState {
 		gameStateQuit();
 		void exec(char input) {}
 		gameState * transition(char input) {}
+		void printPrompt(void) {}
 };
 
 /********************
